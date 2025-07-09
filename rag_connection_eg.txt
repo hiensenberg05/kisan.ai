@@ -1,0 +1,107 @@
+Okay, here's the Python code with your specific RAG corpus path filled in.
+
+Before you run this, please ensure:
+
+You have the google-cloud-aiplatform library installed, and specifically the preview version if vertexai.preview.generative_models is truly where the rag module resides for your SDK version. You might need pip install google-cloud-aiplatform[preview].
+
+Your Google Cloud project projectkisan-465305 has the Vertex AI API enabled.
+
+Your environment is authenticated to GCP (e.g., via gcloud auth application-default login or by setting the GOOGLE_APPLICATION_CREDENTIALS environment variable to a service account key file).
+
+The RAG Corpus 4532873024948404224 in us-central1 actually exists and contains relevant data for the queries you're making.
+
+Generated python
+from vertexai.generative_models import GenerativeModel, Tool
+import vertexai
+# Make sure this import is correct for your SDK version.
+# Depending on updates, it might just be from `vertexai.generative_models import rag`
+# or another path. If you get an error, check the latest SDK documentation.
+from vertexai.preview.generative_models import rag
+
+# --- YOUR PROJECT AND CORPUS DETAILS ---
+PROJECT_ID = ""
+LOCATION = "us-central1"
+EXISTING_RAG_CORPUS_ID = ""
+# --- END OF YOUR DETAILS ---
+
+# Initialize Vertex AI API once per session
+vertexai.init(project=PROJECT_ID, location=LOCATION)
+
+# Construct the full resource name for your existing RAG corpus
+# This is what you get from the console after creation.
+existing_rag_corpus_name = f"projects/{PROJECT_ID}/locations/{LOCATION}/ragCorpora/{EXISTING_RAG_CORPUS_ID}"
+
+print(f"Using RAG Corpus: {existing_rag_corpus_name}\n")
+
+# --- Part 1: Direct context retrieval from an existing corpus ---
+# You don't need to 'create_corpus' or 'import_files' if it already exists.
+
+print("--- Performing Direct Context Retrieval ---")
+rag_retrieval_config = rag.RagRetrievalConfig(
+    top_k=3, # Optional: Retrieve up to 3 relevant chunks
+    filter=rag.Filter(vector_distance_threshold=0.5), # Optional: Filter based on similarity
+)
+
+# Replace 'text' with a query that you expect to find relevant information for
+# within your RAG corpus. If your corpus doesn't contain information about
+# "What is RAG and why it is helpful?", the retrieval might not return much.
+retrieval_query_text = "What kind of crops are discussed in the documents?" 
+
+try:
+    response = rag.retrieval_query(
+        rag_resources=[
+            rag.RagResource(
+                rag_corpus=existing_rag_corpus_name, # Use your existing corpus name here
+                # Optional: supply IDs from `rag.list_files()`.
+                # rag_file_ids=["rag-file-1", "rag-file-2", ...],
+            )
+        ],
+        text=retrieval_query_text,
+        rag_retrieval_config=rag_retrieval_config,
+    )
+    print(f"Direct Retrieval Query: '{retrieval_query_text}'")
+    print("Direct Retrieval Response:")
+    print(response) # This will print the retrieved contexts/documents
+except Exception as e:
+    print(f"Error during direct retrieval: {e}")
+    print("Please ensure your RAG corpus exists, is processed, and contains relevant data.")
+    print("Also, check your authentication and API enablement.")
+
+
+print("\n--- Enhancing Generation with the Existing RAG Corpus ---")
+# Create a RAG retrieval tool using your existing corpus
+rag_retrieval_tool = Tool.from_retrieval(
+    retrieval=rag.Retrieval(
+        source=rag.VertexRagStore(
+            rag_resources=[
+                rag.RagResource(
+                    rag_corpus=existing_rag_corpus_name, # Use your existing corpus name here
+                    # Optional: supply IDs from `rag.list_files()`.
+                    # rag_file_ids=["rag-file-1", "rag-file-2", ...],
+                )
+            ],
+            rag_retrieval_config=rag_retrieval_config,
+        ),
+    )
+)
+
+# Create a Gemini model instance with the RAG retrieval tool
+rag_model = GenerativeModel(
+    model_name="gemini-1.5-flash-001", # Using a newer, generally faster model
+    tools=[rag_retrieval_tool]
+)
+
+# Generate response
+# Use a similar query for the generative model, or something that benefits
+# from the context in your corpus.
+generation_query_text = "Summarize the key information about crop management from the provided documents."
+
+try:
+    response = rag_model.generate_content(generation_query_text)
+    print(f"Enhanced Generation Query: '{generation_query_text}'")
+    print("\nEnhanced Generation Response:")
+    print(response.text)
+except Exception as e:
+    print(f"Error during enhanced generation: {e}")
+    print("Ensure the Gemini model is available in your region and RAG corpus is accessible.")
+    print("Also, check your authentication and API enablement.")

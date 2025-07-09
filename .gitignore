@@ -1,0 +1,15 @@
+# Ignore environment files
+.env
+
+# Node modules
+node_modules/
+
+# Python virtual environment
+venv/
+
+# Google Cloud credentials
+projectkisan-465305-386ada2795ef.json
+
+# Local info and password files
+info.txt
+ps.txt 
