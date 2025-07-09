@@ -1,4 +1,4 @@
-# 🌾 project.ai
+# 🌾 kisan.ai
 
 A full-stack AI-powered application featuring a custom Retrieval-Augmented Generation (RAG) engine, Google Cloud integration, and a modern React frontend.
 
