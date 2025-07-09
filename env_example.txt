@@ -1,22 +1,65 @@
-# Example .env file for project.ai
-# Copy this file to .env and fill in the values
+GOOGLE_CLOUD_PROJECT_ID=
+GOOGLE_CLOUD_LOCATION=
+GOOGLE_APPLICATION_CREDENTIALS=
 
-# Google Cloud
-GOOGLE_APPLICATION_CREDENTIALS=projectkisan-465305-386ada2795ef.json
-GCP_BUCKET_NAME=your-bucket-name
-GCP_PROJECT_ID=your-gcp-project-id
+# RAG Configuration
+RAG_CORPUS_ID=
 
-# RAG Engine
-RAG_API_KEY=your-rag-api-key
-RAG_ENDPOINT=your-rag-endpoint
+# API Configuration
+API_HOST=0.0.0.0
+API_PORT=8000
+API_DEBUG=True
 
-# Backend
-SECRET_KEY=your-secret-key
-DEBUG=True
-ALLOWED_HOSTS=localhost,127.0.0.1
+# CORS Configuration
+CORS_ORIGINS=*
+CORS_ALLOW_CREDENTIALS=True
 
-# Frontend
-VITE_API_URL=http://localhost:8000
+# Logging Configuration
+LOG_LEVEL=INFO
+LOG_FORMAT=%(asctime)s - %(name)s - %(levelname)s - %(message)s
 
-# Other
-# Add any other environment variables required by your project here
+# Model Configuration
+GEMINI_MODEL=gemini-2.0-flash-exp
+GEMINI_TEMPERATURE=0.3
+GEMINI_MAX_TOKENS=2048
+
+# RAG Configuration
+RAG_TOP_K=5
+RAG_SIMILARITY_THRESHOLD=0.7
+
+# Speech Configuration
+SPEECH_LANGUAGE=en-IN
+SPEECH_SAMPLE_RATE=16000
+
+# TTS Configuration
+TTS_LANGUAGE=en-IN
+TTS_VOICE_GENDER=female
+TTS_SPEAKING_RATE=0.9
+
+# Market Data Configuration
+MARKET_CACHE_DURATION=3600
+MARKET_API_TIMEOUT=10
+
+# File Upload Configuration
+MAX_FILE_SIZE=10485760
+ALLOWED_IMAGE_TYPES=image/jpeg,image/png,image/webp
+ALLOWED_AUDIO_TYPES=audio/wav,audio/mp3,audio/ogg
+
+# Security Configuration
+SECRET_KEY=your-secret-key-change-in-production
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+
+# Database Configuration (if needed in future)
+# DATABASE_URL=postgresql://user:password@localhost/dbname
+
+# External APIs Configuration
+AGMARKNET_API_URL=https://agmarknet.gov.in/api/v1
+MANDI_API_URL=https://api.data.gov.in/resource
+
+# Monitoring Configuration
+ENABLE_METRICS=False
+METRICS_PORT=9090
+
+# Development Configuration
+ENVIRONMENT=development
+ENABLE_SWAGGER=True
