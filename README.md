@@ -1,123 +1,185 @@
-# project.ai
+# 🌾 kisan.ai
 
-A full-stack AI-powered application with a RAG (Retrieval-Augmented Generation) engine, Google Cloud integration, and a modern frontend.
-
----
-
-## Table of Contents
-- [Features](#features)
-- [Prerequisites](#prerequisites)
-- [Google Cloud Setup](#google-cloud-setup)
-- [Environment Variables](#environment-variables)
-- [Backend Setup](#backend-setup)
-- [Frontend Setup](#frontend-setup)
-- [Running the App](#running-the-app)
-- [Notes](#notes)
+A full-stack AI-powered application featuring a custom Retrieval-Augmented Generation (RAG) engine, Google Cloud integration, and a modern React frontend.
 
 ---
 
-## Features
-- RAG (Retrieval-Augmented Generation) engine integration
-- Google Cloud Storage for data
-- Modern React frontend
-- Audio, vision, and text tools
+## 📑 Table of Contents
+
+- [✨ Features](#-features)
+- [⚙️ Prerequisites](#-prerequisites)
+- [☁️ Google Cloud Setup](#-google-cloud-setup)
+- [🔐 Environment Variables](#-environment-variables)
+- [🧠 Backend Setup](#-backend-setup)
+- [🖼️ Frontend Setup](#-frontend-setup)
+- [🚀 Running the App](#-running-the-app)
+- [📝 Notes](#-notes)
 
 ---
 
-## Prerequisites
-- Python 3.8+
-- Node.js 16+
-- Google Cloud account
-- Google Cloud SDK (gcloud CLI)
+## ✨ Features
+
+- 🔎 Custom RAG (Retrieval-Augmented Generation) engine
+- ☁️ Google Cloud Storage integration for document/image handling
+- 🧠 Multimodal AI: Audio, vision, and text tools
+- ⚛️ Modern React frontend (Vite)
+- 🎙️ Google Speech-to-Text & Text-to-Speech APIs
 
 ---
 
-## Google Cloud Setup
+## ⚙️ Prerequisites
 
-1. **Create a Google Cloud Storage Bucket:**
-   - Go to [Google Cloud Console](https://console.cloud.google.com/storage/browser)
-   - Create a new bucket (note the name, e.g., `your-bucket-name`)
-
-2. **Upload Data Folder:**
-   - Upload your data (documents, images, etc.) to the bucket.
-
-3. **Create a Service Account & Download Credentials:**
-   - Go to IAM & Admin > Service Accounts
-   - Create a new service account with Storage Object Admin role
-   - Download the JSON key file and place it in the project root (e.g., `projectkisan-465305-386ada2795ef.json`)
-
-4. **Enable Required APIs:**
-   - Cloud Storage API
-   - Any other APIs required by your RAG engine
+- [Python 3.8+](https://www.python.org/downloads/)
+- [Node.js 16+](https://nodejs.org/)
+- [Google Cloud SDK (gcloud CLI)](https://cloud.google.com/sdk/docs/install)
+- Google Cloud Account with billing enabled
 
 ---
 
-## Google CLI Setup
+## ☁️ Google Cloud Setup
 
-1. **Install Google Cloud SDK:**
-   - [Download and install instructions](https://cloud.google.com/sdk/docs/install)
+### 1. Create a Cloud Storage Bucket
 
-2. **Initialize gcloud:**
-   ```sh
-   gcloud init
-   gcloud auth activate-service-account --key-file=projectkisan-465305-386ada2795ef.json
-   gcloud config set project your-gcp-project-id
-   ```
+- Go to [Google Cloud Console](https://console.cloud.google.com/storage/browser)
+- Create a new bucket (e.g., `your-bucket-name`)
+- Upload your data folder (documents, images, etc.)
 
----
+### 2. Create a Service Account
 
-## Environment Variables
+- Navigate to **IAM & Admin > Service Accounts**
+- Click **Create Service Account**
+- Assign the role: `Storage Object Admin`
+- After creating, click **Add Key > Create new key > JSON**
+- Save the JSON key file in the root of your project directory, e.g.,  
+  `projectkisan-465305-386ada2795ef.json`
 
-1. Copy `env_example.txt` to `.env` and fill in the values:
-   ```sh
-   cp env_example.txt .env
-   # Edit .env and set your values
-   ```
-2. Make sure `.env` is in your `.gitignore`.
+### 3. Enable Required Google Cloud APIs
 
----
+- **Cloud Storage API**
+- **Speech-to-Text API**
+- **Text-to-Speech API**
+- **Cloud Vision API** (optional, for image-based tools)
 
-## Backend Setup
+### 4. Set `GOOGLE_APPLICATION_CREDENTIALS`
 
-1. **Create and activate a virtual environment:**
-   ```sh
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-2. **Install dependencies:**
-   ```sh
-   pip install -r requirements.txt
-   ```
-3. **Run the backend:**
-   ```sh
-   python backend/main.py
-   ```
+Set the environment variable to point to your credentials file:
 
----
+#### On Mac/Linux:
 
-## Frontend Setup
+```bash
+export GOOGLE_APPLICATION_CREDENTIALS="projectkisan-465305-386ada2795ef.json"
+```
 
-1. **Install dependencies:**
-   ```sh
-   cd frontend
-   npm install
-   ```
-2. **Run the frontend:**
-   ```sh
-   npm run dev
-   ```
+#### On Windows (CMD):
+
+```cmd
+set GOOGLE_APPLICATION_CREDENTIALS=projectkisan-465305-386ada2795ef.json
+```
+
+#### On Windows (PowerShell):
+
+```powershell
+$env:GOOGLE_APPLICATION_CREDENTIALS="projectkisan-465305-386ada2795ef.json"
+```
+
+Or add it to your `.env` file as:
+```env
+GOOGLE_APPLICATION_CREDENTIALS=projectkisan-465305-386ada2795ef.json
+```
 
 ---
 
-## Running the App
+## 🔐 Environment Variables
 
-- Backend runs on [http://localhost:8000](http://localhost:8000)
-- Frontend runs on [http://localhost:5173](http://localhost:5173) (default Vite port)
+### 1. Create a `.env` File
+
+Copy the example file and edit it:
+
+```bash
+cp env_example.txt .env
+```
+
+Edit `.env` with your values for:
+- `GOOGLE_APPLICATION_CREDENTIALS`
+- Bucket name
+- Any API keys or service endpoints required by your RAG engine
+
+### 2. Ignore Sensitive Files
+
+Ensure the following are in your `.gitignore`:
+
+```
+.env
+*.json
+```
 
 ---
 
-## Notes
-- Do **NOT** commit your `.env` or credential files.
-- Make sure to update your environment variables as needed.
-- For RAG engine setup, refer to your specific engine's documentation for API keys and endpoints.
-- For any issues, check the logs or open an issue. 
+## 🧠 Backend Setup
+
+### 1. Create a Virtual Environment
+
+```bash
+python -m venv venv
+```
+
+### 2. Activate It
+
+- **Mac/Linux**:
+  ```bash
+  source venv/bin/activate
+  ```
+- **Windows**:
+  ```cmd
+  venv\Scripts\activate
+  ```
+
+### 3. Install Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### 4. Run the Backend
+
+```bash
+python backend/main.py
+```
+
+---
+
+## 🖼️ Frontend Setup
+
+### 1. Install Frontend Dependencies
+
+```bash
+cd frontend
+npm install
+```
+
+### 2. Run the Frontend
+
+```bash
+npm run dev
+```
+
+---
+
+## 🚀 Running the App
+
+- **Backend**: [http://localhost:8000](http://localhost:8000)
+- **Frontend**: [http://localhost:5173](http://localhost:5173)
+
+---
+
+## 📝 Notes
+
+- Do **NOT** commit your `.env` or credential `.json` files.
+- Make sure `GOOGLE_APPLICATION_CREDENTIALS` is correctly set for all environments.
+- Refer to your RAG engine’s documentation for additional configs and endpoints.
+- Use `gcloud auth list` and `gcloud config list` to verify current auth status.
+- For debugging, use verbose logs or open an issue.
+
+---
+
+Built with 💡 by Team project.ai
