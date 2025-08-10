@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     # Model Configuration
     GEMINI_MODEL: str = "gemini-2.0-flash-exp"
     GEMINI_TEMPERATURE: float = 0.3
-    GEMINI_MAX_TOKENS: int = 2048
+    GEMINI_MAX_TOKENS: int = 1024
     
     # RAG Configuration
     RAG_TOP_K: int = 5
@@ -62,7 +62,7 @@ class Settings(BaseSettings):
     # File Upload Configuration
     MAX_FILE_SIZE: int = 10485760  # 10MB
     ALLOWED_IMAGE_TYPES: str = "image/jpeg,image/png,image/webp"
-    ALLOWED_AUDIO_TYPES: str = "audio/wav,audio/mp3,audio/ogg"
+    ALLOWED_AUDIO_TYPES: str = "audio/wav,audio/mp3,audio/ogg,audio/webm"
     
     @property
     def allowed_image_types_list(self) -> List[str]:
@@ -92,6 +92,9 @@ class Settings(BaseSettings):
     # Development Configuration
     ENVIRONMENT: str = "development"
     ENABLE_SWAGGER: bool = True
+
+    # Performance / Latency
+    FAST_MODE: bool = True  # If true, bypass heavy RAG/classification for a single fast LLM response
     
     class Config:
         env_file = ".env"

@@ -17,7 +17,9 @@ from tools.tts import TTSHandler
 from tools.vision import VisionHandler
 from tools.market import MarketDataHandler
 from tools.policies import GovernmentPoliciesHandler
+from utils import Utils
 from config import settings
+from memory import ConversationMemory
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -41,6 +43,7 @@ app.add_middleware(
 # Request Models
 class ChatRequest(BaseModel):
     query: str
+    session_id: str | None = None
 
 class MarketRequest(BaseModel):
     crop: str
@@ -57,6 +60,7 @@ tts_handler = TTSHandler()
 vision_handler = VisionHandler()
 market_handler = MarketDataHandler()
 policies_handler = GovernmentPoliciesHandler()
+memory_store = ConversationMemory(max_messages=40)
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
@@ -108,8 +112,19 @@ async def chat_text(request: ChatRequest):
     try:
         logger.info(f"Received text query: {request.query}")
         
-        # Process through agent orchestrator
-        response = await kisan_agent.process_text_query(request.query)
+        # Prepare conversational context
+        session_id = request.session_id or "default"
+        history = memory_store.get_history(session_id)
+        history_context = ConversationMemory.format_history_for_context(history)
+
+        # Process through agent orchestrator with context preface
+        enriched_query = (
+            f"Conversation so far:\n{history_context}\n\nUser question: {request.query}" if history_context else request.query
+        )
+        response = await kisan_agent.process_text_query(enriched_query)
+
+        # Save exchange
+        memory_store.add_exchange(session_id, request.query, response)
         
         return {
             "success": True,
@@ -132,13 +147,19 @@ async def chat_text(request: ChatRequest):
         )
 
 @app.post("/api/chat/voice")
-async def chat_voice(audio_file: UploadFile = File(...)):
+async def chat_voice(audio_file: UploadFile = File(...), session_id: str | None = None):
     """Handle voice-based queries from farmers"""
     try:
         logger.info(f"Received voice query from: {audio_file.filename}")
         
         # Read audio file
         audio_content = await audio_file.read()
+
+        # Basic validation before ASR
+        validation = Utils.validate_audio_file(audio_content)
+        if not validation.get("valid"):
+            logger.error(f"Audio validation failed: {validation.get('error')}")
+            raise HTTPException(status_code=400, detail=validation.get("error", "Invalid audio file"))
         
         # Convert speech to text
         transcribed_text = await asr_handler.speech_to_text(audio_content)
@@ -146,22 +167,42 @@ async def chat_voice(audio_file: UploadFile = File(...)):
         if not transcribed_text:
             raise HTTPException(status_code=400, detail="Could not transcribe audio")
         
-        # Process through agent orchestrator
-        agent_response = await kisan_agent.process_text_query(transcribed_text)
+        # Process through agent orchestrator with history context
+        sid = session_id or "default"
+        history = memory_store.get_history(sid)
+        history_context = ConversationMemory.format_history_for_context(history)
+        enriched_query = (
+            f"Conversation so far:\n{history_context}\n\nUser question: {transcribed_text}" if history_context else transcribed_text
+        )
+        agent_response = await kisan_agent.process_text_query(enriched_query)
+        memory_store.add_exchange(sid, transcribed_text, agent_response)
         
-        # Convert response to speech
-        audio_response = await tts_handler.text_to_speech(agent_response)
-        
+        # Convert response to speech (gracefully handle TTS failures)
+        audio_response = await tts_handler.text_to_speech(
+            agent_response,
+            language_code=settings.TTS_LANGUAGE,
+            voice_gender=settings.TTS_VOICE_GENDER,
+        )
+
+        audio_b64 = None
+        if audio_response:
+            audio_b64 = base64.b64encode(audio_response).decode('utf-8')
+        else:
+            logger.warning("TTS synthesis failed; returning text response without audio")
+
         return {
             "success": True,
             "data": {
                 "transcribed_text": transcribed_text,
                 "response_text": agent_response,
-                "audio_response": base64.b64encode(audio_response).decode('utf-8'),
+                "audio_response": audio_b64,
                 "timestamp": asyncio.get_event_loop().time()
             },
             "message": "Voice query processed successfully"
         }
+    except HTTPException as e:
+        # Allow explicit HTTP errors (e.g., 400) to pass through
+        raise e
     except Exception as e:
         logger.error(f"Error processing voice query: {e}")
         raise HTTPException(status_code=500, detail=str(e))

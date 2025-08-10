@@ -18,14 +18,12 @@ const App: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([{
     id: '1',
     type: 'bot',
-    content: `🙏 **Namaste! Welcome to Kisan.ai** 
+    content: `🙏 Welcome to Kisan.ai
 
-I'm your personal agricultural assistant, here to help you with:
-
-🌱 **Crop Disease Diagnosis** - Upload photos for instant analysis
-📊 **Real-time Market Prices** - Get current rates for your crops  
-🏛️ **Government Schemes** - Find subsidies and benefits
-🎤 **Voice Support** - Speak in your local language
+• Ask about crop diseases and remedies
+• Get real-time market prices
+• Check government schemes and benefits
+• Speak or type in your language
 
 How can I help you today?`,
     timestamp: new Date(),

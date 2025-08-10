@@ -34,14 +34,14 @@ class KisanAgent:
         self.policies_handler = GovernmentPoliciesHandler()
         self.vision_handler = VisionHandler()
         
-        # Initialize Gemini model
+        # Initialize Gemini model (lighter config for latency)
         self.model = GenerativeModel(
             model_name="gemini-2.0-flash",
             generation_config={
-                "temperature": 0.3,
+                "temperature": settings.GEMINI_TEMPERATURE,
                 "top_p": 0.8,
-                "top_k": 40,
-                "max_output_tokens": 2048,
+                "top_k": 20,
+                "max_output_tokens": settings.GEMINI_MAX_TOKENS,
             }
         )
         
@@ -159,24 +159,34 @@ class KisanAgent:
         try:
             logger.info(f"Processing query: {query}")
             
-            # Step 1: Intent Classification
-            intent = await self._classify_intent(query)
-            logger.info(f"Classified intent: {intent}")
-            
-            # Step 2: Route to appropriate handler
-            if intent == "CROP_DISEASE":
-                response = await self._handle_crop_disease_query(query)
-            elif intent == "MARKET_PRICES":
-                response = await self._handle_market_query(query)
-            elif intent == "GOVERNMENT_POLICIES":
-                response = await self._handle_policy_query(query)
-            elif intent == "GENERAL_AGRICULTURE":
-                response = await self._handle_general_query(query)
+            # Fast path: heuristic classification to avoid LLM roundtrip when obvious
+            if settings.FAST_MODE:
+                ql = query.lower()
+                if any(k in ql for k in ["price", "mandi", "market"]):
+                    response = await self._handle_market_query(query)
+                elif any(k in ql for k in ["scheme", "subsidy", "government", "policy"]):
+                    response = await self._handle_policy_query(query)
+                elif any(k in ql for k in ["disease", "pest", "wilt", "blight", "rust", "spot"]):
+                    response = await self._handle_crop_disease_query(query)
+                else:
+                    # Light general handler without extra classification
+                    response = await self._handle_general_query(query)
             else:
-                # Fallback to general RAG search
-                response = await self._handle_general_query(query)
+                # Original multi-step route
+                intent = await self._classify_intent(query)
+                logger.info(f"Classified intent: {intent}")
+                if intent == "CROP_DISEASE":
+                    response = await self._handle_crop_disease_query(query)
+                elif intent == "MARKET_PRICES":
+                    response = await self._handle_market_query(query)
+                elif intent == "GOVERNMENT_POLICIES":
+                    response = await self._handle_policy_query(query)
+                elif intent == "GENERAL_AGRICULTURE":
+                    response = await self._handle_general_query(query)
+                else:
+                    response = await self._handle_general_query(query)
                 
-            return concise_output(response)
+            return concise_output(response, max_lines=6)
                 
         except Exception as e:
             logger.error(f"Error processing query: {e}", exc_info=True)

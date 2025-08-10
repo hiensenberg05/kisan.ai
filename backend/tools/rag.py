@@ -60,8 +60,9 @@ class RAGTool:
         
         # RAG retrieval configuration - Using the imported RagRetrievalConfig
         self.rag_retrieval_config = rag.RagRetrievalConfig(
-            top_k=5,  # Retrieve top 5 relevant chunks
-            filter=rag.Filter(vector_distance_threshold=0.7), # Using rag.Filter
+            top_k=getattr(settings, "RAG_TOP_K", 5),  # Configurable
+            # Remove filter for now to avoid potential issues
+            # filter=rag.Filter(vector_distance_threshold=0.7), # Using rag.Filter
         )
 
         logger.info(f"RAG Tool initialized with corpus: {self.rag_corpus_name}")
@@ -92,14 +93,14 @@ class RAGTool:
             logger.info(f"Querying RAG knowledge: {query} (corpus: {corpus_type})")
             
             # Step 1: Direct retrieval for context
-            retrieval_response = self._retrieve_context(query, corpus_type) # No await, as _retrieve_context is not async
+            retrieval_response = self._retrieve_context(query, corpus_type)
             
             if not retrieval_response:
                 logger.warning("No relevant context retrieved from RAG")
-                return self._fallback_response(query) # No await, as _fallback_response is not async
+                return self._fallback_response(query)
             
             # Step 2: Generate response using retrieved context
-            response = self._generate_response(query, retrieval_response, corpus_type) # No await, as _generate_response is not async
+            response = self._generate_response(query, retrieval_response, corpus_type)
             
             return response
             
@@ -125,21 +126,50 @@ class RAGTool:
                 rag_retrieval_config=self.rag_retrieval_config,
             )
             
+            # Alternative approach: try to access response directly
+            if hasattr(response, 'text'):
+                return response.text
+            
             # Extract and format retrieved context
+            logger.debug(f"RAG response type: {type(response)}")
+            logger.debug(f"RAG response attributes: {dir(response)}")
             if hasattr(response, 'contexts') and response.contexts:
+                logger.debug(f"Contexts type: {type(response.contexts)}")
+                logger.debug(f"Contexts attributes: {dir(response.contexts)}")
                 contexts = []
-                for context in response.contexts:
-                    if hasattr(context, 'text'):
-                        contexts.append(context.text)
+                # Handle different possible structures of response.contexts
+                if hasattr(response.contexts, '__iter__') and not isinstance(response.contexts, str):
+                    # If it's iterable (list, tuple, etc.)
+                    for context in response.contexts:
+                        if hasattr(context, 'text'):
+                            contexts.append(context.text)
+                        elif isinstance(context, str):
+                            contexts.append(context)
+                else:
+                    # If it's a single object or string
+                    if hasattr(response.contexts, 'text'):
+                        contexts.append(response.contexts.text)
+                    elif isinstance(response.contexts, str):
+                        contexts.append(response.contexts)
                 
-                return "\n\n".join(contexts)
+                if contexts:
+                    return "\n\n".join(contexts)
+                else:
+                    logger.warning("No text content found in RAG contexts")
+                    return None
             else:
                 logger.warning("No contexts found in RAG response")
                 return None
                 
         except Exception as e:
             logger.error(f"Error in context retrieval: {e}", exc_info=True)
-            return None
+            # Try alternative approach using the model directly
+            try:
+                logger.info("Attempting alternative RAG approach...")
+                return self._alternative_retrieval(query)
+            except Exception as alt_e:
+                logger.error(f"Alternative retrieval also failed: {alt_e}", exc_info=True)
+                return None
     
     # Changed to synchronous as generate_content is not async
     def _generate_response(self, query: str, context: str, corpus_type: str) -> str:
@@ -199,7 +229,7 @@ class RAGTool:
         except Exception as e:
             logger.error(f"Error in response generation: {e}", exc_info=True)
             # Fallback to simple model without RAG
-            return self._simple_response(query, context) # No await
+            return self._simple_response(query, context)
     
     # Changed to synchronous as generate_content is not async
     def _simple_response(self, query: str, context: str) -> str:
@@ -247,7 +277,7 @@ class RAGTool:
             return await self.query_knowledge(query, "disease_causes")
         except Exception as e:
             logger.error(f"Error searching diseases: {e}", exc_info=True)
-            return self._fallback_response(f"disease in {crop} with {symptoms}") # No await
+            return self._fallback_response(f"disease in {crop} with {symptoms}")
     
     async def search_remedies(self, disease: str, crop: str) -> str:
         """Search for remedies for specific diseases"""
@@ -256,7 +286,7 @@ class RAGTool:
             return await self.query_knowledge(query, "remedies")
         except Exception as e:
             logger.error(f"Error searching remedies: {e}", exc_info=True)
-            return self._fallback_response(f"remedy for {disease} in {crop}") # No await
+            return self._fallback_response(f"remedy for {disease} in {crop}")
     
     async def search_policies(self, policy_query: str) -> str:
         """Search for government policies and schemes"""
@@ -264,7 +294,7 @@ class RAGTool:
             return await self.query_knowledge(policy_query, "government_policies")
         except Exception as e:
             logger.error(f"Error searching policies: {e}", exc_info=True)
-            return self._fallback_response(policy_query) # No await
+            return self._fallback_response(policy_query)
     
     async def get_general_info(self, topic: str) -> str:
         """Get general agricultural information"""
@@ -272,7 +302,7 @@ class RAGTool:
             return await self.query_knowledge(topic, "general_queries")
         except Exception as e:
             logger.error(f"Error getting general info: {e}", exc_info=True)
-            return self._fallback_response(topic) # No await
+            return self._fallback_response(topic)
     
     async def list_corpus_files(self) -> List[str]:
         """List all files in the RAG corpus"""
@@ -287,6 +317,25 @@ class RAGTool:
         except Exception as e:
             logger.error(f"Error listing corpus files: {e}", exc_info=True)
             return []
+    
+    def _alternative_retrieval(self, query: str) -> Optional[str]:
+        """Alternative retrieval method using direct model approach"""
+        try:
+            # Create a simple prompt that includes the query
+            prompt = f"""
+            You are an agricultural expert assistant. Answer the following question about farming and agriculture:
+            
+            Question: {query}
+            
+            Provide a helpful, practical answer based on agricultural knowledge.
+            """
+            
+            response = self.rag_model.generate_content(prompt)
+            return response.text
+            
+        except Exception as e:
+            logger.error(f"Error in alternative retrieval: {e}", exc_info=True)
+            return None
     
     async def get_corpus_stats(self) -> Dict[str, Any]:
         """Get statistics about the RAG corpus"""

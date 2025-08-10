@@ -5,6 +5,8 @@ const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 export interface ChatRequest {
   query: string;
+  session_id?: string;
+  is_voice?: boolean;
 }
 
 export interface ChatResponse {
@@ -62,10 +64,11 @@ class ApiService {
     }
   }
 
-  async sendVoiceMessage(audioFile: File): Promise<ApiResponse<VoiceResponse>> {
+  async sendVoiceMessage(audioFile: File, sessionId?: string): Promise<ApiResponse<VoiceResponse>> {
     try {
       const formData = new FormData();
       formData.append('audio_file', audioFile);
+      if (sessionId) formData.append('session_id', sessionId);
       const res = await fetch(`${this.baseUrl}/api/chat/voice`, {
         method: 'POST',
         body: formData

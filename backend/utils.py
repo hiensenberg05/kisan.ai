@@ -108,7 +108,8 @@ class Utils:
                 b'RIFF': 'WAV',
                 b'ID3': 'MP3',
                 b'\xff\xfb': 'MP3',
-                b'OggS': 'OGG'
+                b'OggS': 'OGG',
+                b'\x1A\x45\xDF\xA3': 'WEBM'  # EBML header for WebM/Matroska
             }
             
             file_type = None
@@ -120,7 +121,7 @@ class Utils:
             if not file_type:
                 return {
                     "valid": False,
-                    "error": "Invalid audio format. Supported formats: WAV, MP3, OGG"
+                    "error": "Invalid audio format. Supported formats: WAV, MP3, OGG, WEBM"
                 }
             
             return {
