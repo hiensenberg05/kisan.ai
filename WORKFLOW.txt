@@ -1,0 +1,43 @@
+backend/
+│── main.py                     # FastAPI entrypoint
+│── orchestrator.py              # Main decision agent
+│
+├── api/
+│   └── routes.py                # API routes/endpoints
+│
+├── agents/                      # Orchestration agents
+│   ├── disease_agent.py         # Calls Plant.health API
+│   ├── remedies_agent.py        # Finds remedies, calls price services
+│   ├── market_agent.py          # Agmarknet for market trends
+│   ├── schemes_agent.py         # Govt schemes/subsidies
+│   ├── weather_agent.py         # Weather + location context
+│   └── voice_agent.py           # For STT → intent → TTS response
+│
+├── services/                    # API connectors
+│   ├── disease_service.py       # Plant.health API integration
+│   ├── price_service.py         # Apify, SerpAPI, gov scraping
+│   ├── market_service.py        # Agmarknet API
+│   ├── scheme_service.py        # Govt portals scraper
+│   ├── weather_service.py       # OpenWeather + Cloud location API
+│   └── voice_service.py         # Cloud STT & TTS integration
+│
+├── tools/                       # Intelligence utilities
+│   ├── rag_engine.py            # RAG pipeline (VectorDB + Neo4j hybrid)
+│   ├── trend_analysis.py        # Price trend/forecasting
+│   └── nlp_utils.py             # Intent extraction, preprocessing
+│
+├── modules/                     # Language & communication modules
+│   ├── asr.py                   # STT (Google Cloud Speech API)
+│   ├── tts.py                   # TTS (Google Cloud / Azure)
+│   ├── translator.py            # Local language translation
+│   └── formatter.py             # Format results into farmer-friendly text
+│
+├── utils/
+│   ├── config.py                # API keys, settings
+│   ├── logger.py                # Central logging
+│   ├── helpers.py               # Shared helper functions
+│   └── errors.py                # Custom exceptions
+│
+├── schemas/
+│   └── schemas.py               # Pydantic schemas for requests/responses
+└── requirements.txt
