@@ -19,8 +19,11 @@ from schemas.schemas import (
 )
 
 # Import agents and services
-from agents.schemes_agent import schemes_agent, SchemeSearchQuery as SchemeQueryModel
+from agents.schemes_agent import SchemesAgent, SchemeSearchQuery as SchemeQueryModel
 from orchestrator import orchestrator, AgentType
+
+# Initialize agents
+schemes_agent = SchemesAgent()
 
 # Create router with prefix and tags
 router = APIRouter(

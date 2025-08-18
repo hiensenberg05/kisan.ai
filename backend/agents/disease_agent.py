@@ -47,7 +47,8 @@ class DiseaseAgent(BaseAgent):
         """
         super().__init__(
             name="PlantDiseaseExpert",
-            system_prompt=system_prompt,
+            description="Specialized agent for plant disease diagnosis and treatment recommendations",
+            system_prompt=system_prompt
         )
         self.agent = disease_agent
 
