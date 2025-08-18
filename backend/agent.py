@@ -186,7 +186,7 @@ class KisanAgent:
                 else:
                     response = await self._handle_general_query(query)
                 
-            return concise_output(response, max_lines=6)
+            return concise_output(response, max_lines=12)
                 
         except Exception as e:
             logger.error(f"Error processing query: {e}", exc_info=True)
@@ -197,16 +197,17 @@ class KisanAgent:
         try:
             # Use Gemini to classify intent
             classification_prompt = f"""
-            You are an agricultural expert assistant. Analyze the following farmer's query and classify it into one of these categories:
+            Classify this farmer's query into one category:
 
-            1. CROP_DISEASE - Questions about plant diseases, pests, symptoms, treatments
-            2. MARKET_PRICES - Questions about crop prices, market information, selling advice, mandi rates, price today, price in city, etc.
-            3. GOVERNMENT_POLICIES - Questions about government schemes, subsidies, policies, loans, KCC, insurance, eligibility, how to apply, etc.
-            4. GENERAL_AGRICULTURE - General farming questions, cultivation techniques, best practices, irrigation, weather, soil, etc.
+            Categories:
+            - CROP_DISEASE: Plant diseases, pests, symptoms, treatments
+            - MARKET_PRICES: Crop prices, market info, selling advice, mandi rates
+            - GOVERNMENT_POLICIES: Government schemes, subsidies, loans, KCC, insurance
+            - GENERAL_AGRICULTURE: Farming practices, cultivation, soil, weather
 
             Query: "{query}"
 
-            Respond with only the category name (e.g., MARKET_PRICES, CROP_DISEASE, etc.)
+            Respond with only the category name.
             """
             response = self.model.generate_content(classification_prompt)
             intent = response.text.strip().upper()
@@ -219,14 +220,9 @@ class KisanAgent:
         """Handle crop disease related queries"""
         try:
             extraction_prompt = f"""
-            Extract the following information from this crop disease query:
-            - Crop name (e.g., tomato, rice, wheat)
-            - Symptoms described (e.g., yellow leaves, spots, wilting)
-            - Any specific details mentioned
+            Extract crop and symptoms from: "{query}"
 
-            Query: "{query}"
-
-            Respond in JSON format:
+            JSON format:
             {{
                 "crop": "crop_name",
                 "symptoms": "symptoms_description",
@@ -237,21 +233,18 @@ class KisanAgent:
             extraction_result = json.loads(response.text)
             rag_query = f"disease symptoms {extraction_result['crop']} {extraction_result['symptoms']}"
             rag_response = await self.rag_tool.query_knowledge(rag_query, "disease_causes")
+            
             response_prompt = f"""
-            You are an agricultural expert. A farmer is asking about crop disease issues.
-
-            Query: {query}
             Crop: {extraction_result['crop']}
             Symptoms: {extraction_result['symptoms']}
-
-            RAG Information: {rag_response}
-
-            Please provide a clear, well-formatted answer for the farmer:
-            - Start with a short, bolded title (e.g., **Likely Disease and Solution**)
-            - Use bullet points for diagnosis, treatment, and prevention
-            - Use simple language and short sentences
-            - Add a "Tips" section at the end if possible
-            - Make the answer easy to read on a mobile phone
+            Knowledge: {rag_response}
+            
+            Provide complete solution with:
+            1. Problem identification
+            2. Treatment steps
+            3. Prevention tips
+            
+            Be direct, complete, and practical. Use 3-4 sentences per point.
             """
             final_response = self.model.generate_content(response_prompt)
             return final_response.text
@@ -263,14 +256,9 @@ class KisanAgent:
         """Handle market price related queries (always use market tool, never RAG)"""
         try:
             extraction_prompt = f"""
-            Extract the following information from this market query:
-            - Crop name (e.g., tomato, rice, wheat)
-            - Location/region if mentioned
-            - Type of market information needed
+            Extract from: "{query}"
 
-            Query: "{query}"
-
-            Respond in JSON format:
+            JSON format:
             {{
                 "crop": "crop_name",
                 "location": "location_or_region",
@@ -283,19 +271,17 @@ class KisanAgent:
                 extraction_result['crop'], 
                 extraction_result.get('location')
             )
+            
             analysis_prompt = f"""
-            You are an agricultural market expert. Analyze this market data and provide advice to a farmer.
-
-            Query: {query}
             Crop: {extraction_result['crop']}
-            Market Data: {market_data}
-
-            Please provide a clear, well-formatted answer for the farmer:
-            - Start with a short, bolded title (e.g., **Current Market Prices for Tomato in Bangalore**)
-            - Use bullet points for prices, trends, and recommendations
-            - Use simple language and short sentences
-            - Add a "Tips" section at the end if possible
-            - Make the answer easy to read on a mobile phone
+            Market data: {market_data}
+            
+            Provide complete market analysis:
+            1. Current prices and range
+            2. Market trends and patterns
+            3. Selling recommendation with timing
+            
+            Be specific and actionable. Include all relevant details.
             """
             final_response = self.model.generate_content(analysis_prompt)
             return final_response.text
@@ -307,18 +293,18 @@ class KisanAgent:
         """Handle government policy related queries using RAG"""
         try:
             rag_response = await self.rag_tool.query_knowledge(query, "government_policies")
+            
             response_prompt = f"""
-            You are an agricultural policy expert. Help a farmer understand government schemes and policies.
-
             Query: {query}
-            RAG Information: {rag_response}
-
-            Please provide a clear, well-formatted answer for the farmer:
-            - Start with a short, bolded title (e.g., **Kisan Credit Card - Benefits and How to Apply**)
-            - Use bullet points for schemes, eligibility, and application steps
-            - Use simple language and short sentences
-            - Add a "Tips" section at the end if possible
-            - Make the answer easy to read on a mobile phone
+            Available information: {rag_response}
+            
+            Provide complete scheme details:
+            1. Most relevant schemes
+            2. Eligibility requirements
+            3. Application process and documents
+            4. Benefits and coverage
+            
+            Be thorough and include all important details.
             """
             final_response = self.model.generate_content(response_prompt)
             return final_response.text
@@ -342,18 +328,17 @@ class KisanAgent:
                     selected_corpus = corpus
                     break
             rag_response = await self.rag_tool.query_knowledge(query, selected_corpus)
+            
             response_prompt = f"""
-            You are an agricultural expert assistant. Answer this farmer's question using the provided information.
-
-            Question: {query}
-            Agricultural Information: {rag_response}
-
-            Please provide a clear, well-formatted answer for the farmer:
-            - Start with a short, bolded title (e.g., **Best Practices for Irrigation**)
-            - Use bullet points for key points and recommendations
-            - Use simple language and short sentences
-            - Add a "Tips" section at the end if possible
-            - Make the answer easy to read on a mobile phone
+            Question: "{query}"
+            Knowledge base: {rag_response}
+            
+            Provide complete practical answer covering:
+            1. Direct answer to the question
+            2. Step-by-step guidance if applicable
+            3. Additional tips and considerations
+            
+            Be comprehensive and practical. Include all relevant information.
             """
             final_response = self.model.generate_content(response_prompt)
             return final_response.text
@@ -369,13 +354,13 @@ class KisanAgent:
             
             # Combine image analysis with text query
             if query:
-                full_query = f"Image analysis shows: {diagnosis_result}. Additional question: {query}"
+                full_query = f"Image shows: {diagnosis_result}. Question: {query}"
             else:
-                full_query = f"Please provide detailed information about this crop condition: {diagnosis_result}"
+                full_query = f"Analyze this crop condition: {diagnosis_result}"
             
             # Process through text query handler
             return await self.process_text_query(full_query)
             
         except Exception as e:
             logger.error(f"Error processing image query: {e}", exc_info=True)
-            return "An error occurred. Please try again later." 
+            return "An error occurred. Please try again later."

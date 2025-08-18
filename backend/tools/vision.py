@@ -147,41 +147,27 @@ class VisionHandler:
             # Convert image to base64 for Gemini
             image_base64 = base64.b64encode(image_content).decode('utf-8')
             
-            # Create detailed prompt for agricultural analysis
+            # Create concise prompt for agricultural analysis
             prompt = """
-            You are an expert agricultural pathologist. Analyze this crop image and provide a detailed diagnosis.
+            You are an expert agricultural pathologist. Analyze this crop image and provide a structured diagnosis.
             
-            Please examine the image for:
-            1. Plant species identification
-            2. Visual symptoms of diseases or pests
-            3. Leaf color, texture, and pattern abnormalities
-            4. Any visible damage or stress indicators
-            5. Growth stage of the plant
+            Focus on:
+            1. Identifying the crop/plant species
+            2. Noting any visible symptoms (spots, discoloration, damage)
+            3. Identifying potential diseases/pests/nutrient issues
             
-            Focus on identifying:
-            - Disease symptoms (spots, lesions, wilting, discoloration)
-            - Pest damage (holes, chewed leaves, webbing)
-            - Nutrient deficiencies (yellowing, stunting, poor growth)
-            - Environmental stress (drought, waterlogging, heat stress)
+            Format your response concisely:
             
-            Provide your analysis in this format:
+            Plant: [crop/plant species or "Unidentified"]
             
-            **Plant Identification:**
-            [Identify the crop/plant species]
+            Symptoms: [1-3 key symptoms, comma-separated]
             
-            **Visual Symptoms:**
-            [Describe all visible symptoms in detail]
+            Possible Issues: [1-3 most likely problems]
             
-            **Likely Diagnosis:**
-            [List possible diseases/pests/nutrient issues]
+            Confidence: [High/Medium/Low] - [brief reason]
             
-            **Confidence Level:**
-            [High/Medium/Low - based on clarity of symptoms]
-            
-            **Additional Observations:**
-            [Any other relevant observations]
-            
-            Be specific and use agricultural terminology. If you cannot identify the plant or symptoms clearly, say so.
+            Keep the response brief and to the point. Use simple agricultural terms.
+            If uncertain, say so rather than guessing.
             """
             
             # Generate response with Gemini Vision
@@ -197,32 +183,40 @@ class VisionHandler:
     async def _synthesize_analysis(self, vision_analysis: Dict[str, Any], gemini_analysis: str) -> str:
         """Synthesize results from both Vision API and Gemini Vision"""
         try:
-            # Create comprehensive analysis prompt
+            # Create concise analysis prompt
             synthesis_prompt = f"""
-            You are an agricultural expert. Synthesize the following analyses of a crop image to provide a comprehensive diagnosis.
+            You are an agricultural expert. Analyze the following crop image data and provide a concise diagnosis:
             
-            **Vision API Analysis:**
-            {json.dumps(vision_analysis, indent=2)}
+            Vision API Analysis: {json.dumps(vision_analysis, indent=2)}
             
-            **Gemini Vision Analysis:**
-            {gemini_analysis}
+            Gemini Vision Analysis: {gemini_analysis}
             
-            Please provide a comprehensive, practical diagnosis that:
-            1. Identifies the crop/plant species
-            2. Describes all visible symptoms
-            3. Provides likely disease/pest/nutrient diagnosis
-            4. Gives confidence level in the diagnosis
-            5. Suggests next steps for the farmer
-            6. Mentions if additional photos or professional consultation is needed
+            Format your response in this exact structure:
             
-            Format your response clearly and use simple language suitable for Indian farmers.
-            Focus on actionable advice and practical solutions.
+            Crop Identification: [crop/plant species or "Unable to identify"]
+            
+            Visible Symptoms: [1-3 most prominent symptoms]
+            
+            Likely Issue: [most probable disease/pest/nutrient problem]
+            
+            Confidence: [High/Medium/Low] - [brief reason for confidence level]
+            
+            Recommended Actions:
+            1. [Primary action]
+            2. [Secondary action]
+            3. [Additional action if needed]
+            
+            Note: [If professional consultation is recommended]
+            
+            Keep the entire response concise (max 150 words). Use simple language suitable for farmers.
             """
             
             # Generate synthesized response
             response = self.gemini_vision.generate_content(synthesis_prompt)
             
-            return response.text
+            # Clean up the response
+            clean_response = response.text.strip()
+            return clean_response
             
         except Exception as e:
             logger.error(f"Error synthesizing analysis: {e}", exc_info=True)
