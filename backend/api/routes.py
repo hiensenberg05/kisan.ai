@@ -83,11 +83,17 @@ async def diagnose_plant(
             crop=crop
         )
         
-        # Call orchestrator
-        response = await orchestrator.run_full_pipeline(
-            diagnose_req=diagnose_req,
-            lat=lat,
-            lon=lon
+        # Prepare image data with proper format
+        image_with_header = f"data:image/jpeg;base64,{diagnose_req.image_b64}"
+        
+        # Call orchestrator with disease agent type
+        response = await orchestrator.process_request(
+            agent_type="disease",
+            request_data={
+                "image": image_with_header,
+                "crop": diagnose_req.crop,
+                "location": {"lat": lat, "lon": lon} if lat and lon else None
+            }
         )
         
         return response

@@ -7,18 +7,22 @@ It sets up the FastAPI app, middleware, routes, and handles the application life
 import os
 import time
 import uvicorn
+import logging
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.gzip import GZipMiddleware
-from contextlib import asynccontextmanager
-from loguru import logger
 from dotenv import load_dotenv
 from typing import Dict, Any, Optional
 import sentry_sdk
 from pydantic import BaseModel
+
+# Configure logging early
+from utils.logger import setup_logging, get_logger
+logger = get_logger(__name__)
 
 # Load environment variables
 load_dotenv()
@@ -37,21 +41,7 @@ if settings.SENTRY_DSN:
     )
 
 # Configure logging
-os.makedirs("logs", exist_ok=True)
-logger.add(
-    "logs/app.log",
-    rotation="500 MB",
-    retention="30 days",
-    compression="zip",
-    level=settings.LOG_LEVEL,
-    format="<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
-           "<level>{level: <8}</level> | "
-           "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> | "
-           "<level>{message}</level>",
-    enqueue=True,
-    backtrace=True,
-    diagnose=True
-)
+setup_logging(settings)
 
 # Custom exception handlers
 class KisanAIException(Exception):
@@ -121,15 +111,19 @@ async def lifespan(app: FastAPI):
     # await database.disconnect()
     logger.info("✅ Cleanup completed")
 
-# Create FastAPI app
-app = FastAPI(
-    title="Kisan.AI Backend API",
-    description="Backend service for Kisan.AI - Empowering farmers with AI",
-    version="1.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc",
-    lifespan=lifespan
-)
+# Create FastAPI app with proper lifespan management
+try:
+    app = FastAPI(
+        title="Kisan.AI Backend API",
+        description="Backend service for Kisan.AI - Empowering farmers with AI",
+        version="1.0.0",
+        docs_url="/docs",
+        redoc_url="/redoc",
+        lifespan=lifespan
+    )
+except Exception as e:
+    logger.error(f"Failed to initialize FastAPI app: {str(e)}")
+    raise
 
 # Configure CORS
 origins = os.getenv("ALLOWED_ORIGINS", "*").split(",")

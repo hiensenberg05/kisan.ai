@@ -10,7 +10,7 @@ import base64
 import json
 import requests
 
-from utils.config import get_settings
+from core.config import get_settings
 from utils.errors import (
     AudioProcessingError,
     TranscriptionError,

@@ -7,10 +7,10 @@ from pathlib import Path
 import numpy as np
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
-from utils.logger import get_logger
-from core.config import settings
+import logging
 
-logger = get_logger(__name__)
+# Use the root logger initially, will be configured later
+logger = logging.getLogger(__name__)
 
 @dataclass
 class Scheme:

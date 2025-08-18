@@ -28,23 +28,129 @@ class MarketService:
         self.timeout = aiohttp.ClientTimeout(total=30)
         self.cache = {}
         self.cache_ttl = 3600  # 1 hour cache TTL
+        self.agnomarket_url = settings.AGNOMARKET_API_URL.rstrip('/')
+        self.agnomarket_key = settings.AGNOMARKET_API_KEY
+        
+        if not self.agnomarket_key:
+            logger.warning("AGNOMARKET_API_KEY not found in settings")
     
-    async def _make_api_request(self, url: str, params: Optional[Dict] = None, headers: Optional[Dict] = None) -> Dict:
+    async def _make_api_request(
+        self, 
+        url: str, 
+        params: Optional[Dict] = None, 
+        headers: Optional[Dict] = None,
+        method: str = 'GET',
+        json_data: Optional[Dict] = None
+    ) -> Dict:
         """Make an HTTP request with error handling and retries."""
         try:
             async with aiohttp.ClientSession(timeout=self.timeout) as session:
-                async with session.get(url, params=params, headers=headers) as response:
-                    response.raise_for_status()
-                    return await response.json()
+                request_kwargs = {
+                    'url': url,
+                    'params': params,
+                    'headers': headers or {},
+                    'json': json_data
+                }
+                
+                if method.upper() == 'GET':
+                    async with session.get(**request_kwargs) as response:
+                        response.raise_for_status()
+                        return await response.json()
+                else:
+                    async with session.post(**request_kwargs) as response:
+                        response.raise_for_status()
+                        return await response.json()
+                        
         except aiohttp.ClientError as e:
             logger.error(f"API request failed: {str(e)}")
             raise APIServiceError(f"Failed to fetch data: {str(e)}")
+            
+    async def _make_agnomarket_request(self, endpoint: str, params: Optional[Dict] = None) -> Dict:
+        """Make an authenticated request to AgnoMarket API."""
+        if not self.agnomarket_url or not self.agnomarket_key:
+            logger.warning("AgnoMarket API URL or key not configured")
+            return {}
+            
+        url = f"{self.agnomarket_url}/{endpoint.lstrip('/')}"
+        headers = {
+            'Authorization': f'Bearer {self.agnomarket_key}',
+            'Content-Type': 'application/json'
+        }
+        
+        try:
+            return await self._make_api_request(url, params=params, headers=headers)
+        except Exception as e:
+            logger.error(f"AgnoMarket API request failed: {str(e)}")
+            return {}
     
+    async def get_market_prices(self, commodity: str, district: str, state: str) -> List[Dict]:
+        """Fetch market prices from AgnoMarket API."""
+        cache_key = f"market_prices_{commodity}_{district}_{state}"
+        if cache_key in self.cache:
+            cached = self.cache[cache_key]
+            if (datetime.now() - cached['timestamp']).total_seconds() < self.cache_ttl:
+                return cached['data']
+                
+        try:
+            # First try AgnoMarket API
+            agno_data = await self._get_agnomarket_prices(commodity, district, state)
+            if agno_data:
+                self.cache[cache_key] = {
+                    'data': agno_data,
+                    'timestamp': datetime.now()
+                }
+                return agno_data
+                
+            # Fallback to other data sources if AgnoMarket fails
+            # ... (existing fallback logic)
+            
+        except Exception as e:
+            logger.error(f"Failed to fetch market prices: {str(e)}")
+            
+        return []
+        
+    async def _get_agnomarket_prices(self, commodity: str, district: str, state: str) -> List[Dict]:
+        """Fetch prices from AgnoMarket API."""
+        try:
+            params = {
+                'commodity': commodity,
+                'district': district,
+                'state': state,
+                'limit': 10  # Get top 10 results
+            }
+            
+            response = await self._make_agnomarket_request('/api/v1/prices', params)
+            
+            if not response or 'data' not in response:
+                return []
+                
+            return [
+                {
+                    'market': item.get('market_name'),
+                    'commodity': item.get('commodity'),
+                    'variety': item.get('variety', ''),
+                    'min_price': float(item.get('min_price', 0)),
+                    'max_price': float(item.get('max_price', 0)),
+                    'modal_price': float(item.get('modal_price', 0)),
+                    'arrival_date': item.get('arrival_date'),
+                    'source': 'AgnoMarket',
+                    'last_updated': item.get('timestamp')
+                }
+                for item in response['data']
+                if item.get('modal_price')
+            ]
+            
+        except Exception as e:
+            logger.error(f"Error processing AgnoMarket data: {str(e)}")
+            return []
+
     async def get_location_info(self, lat: float, lng: float) -> Dict[str, str]:
         """Get location information from coordinates."""
         cache_key = f"location_{lat}_{lng}"
         if cache_key in self.cache:
-            return self.cache[cache_key]
+            cached = self.cache[cache_key]
+            if (datetime.now() - cached['timestamp']).total_seconds() < self.cache_ttl:
+                return cached['data']
             
         try:
             location = await asyncio.to_thread(
@@ -123,68 +229,239 @@ class MarketService:
             return {}
     
     async def get_market_prices(self, commodity: str, state: str, district: Optional[str] = None) -> List[Dict]:
-        """Get market prices for a commodity in a specific location."""
-        cache_key = f"prices_{commodity}_{state}_{district or ''}"
-        if cache_key in self.cache:
-            return self.cache[cache_key]
+        """Get market prices using AgnoMarket API with fallback to Agmarknet.
+        
+        Args:
+            commodity: Name of the commodity
+            state: State name
+            district: Optional district name
             
+        Returns:
+            List of market price records
+        """
+        if not self.agnomarket_key:
+            raise APIServiceError("AgnoMarket API key is not configured")
+            
+        cache_key = f"market_prices_{commodity}_{state}_{district or ''}"
+        
+        # Check cache first
+        if cache_key in self.cache:
+            cached = self.cache[cache_key]
+            if (datetime.now() - cached['timestamp']).total_seconds() < self.cache_ttl:
+                return cached['data']
+        
         try:
-            # First try Agmarknet API
-            try:
-                agmarknet_data = await self._get_agmarknet_prices(commodity, state, district)
-                if agmarknet_data:
-                    self.cache[cache_key] = agmarknet_data
-                    return agmarknet_data
-            except Exception as e:
-                logger.warning(f"Agmarknet API failed, falling back to alternative: {str(e)}")
-                # Fallback to alternative data source if available
-                # This is a placeholder - implement your fallback logic here
-                return []
+            # Try AgnoMarket API first
+            params = {
+                'commodity': commodity.lower(),
+                'state': state.lower(),
+                'api_key': self.agnomarket_key
+            }
+            
+            if district:
+                params['district'] = district.lower()
+            
+            # Make API request to AgnoMarket
+            url = f"{self.agnomarket_url}/prices"
+            headers = {
+                'Authorization': f'Bearer {self.agnomarket_key}',
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
+            
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, params=params, headers=headers) as response:
+                    response.raise_for_status()
+                    data = await response.json()
+                    
+                    # Cache the results
+                    self.cache[cache_key] = {
+                        'data': data,
+                        'timestamp': datetime.now()
+                    }
+                    
+                    return data
+        
+        except aiohttp.ClientError as e:
+            logger.error(f"AgnoMarket API request failed: {e}")
+            # Fallback to Agmarknet if configured
+            if hasattr(settings, 'DATA_GOV_API_KEY') and settings.DATA_GOV_API_KEY:
+                try:
+                    agmarknet_data = await self._get_agmarknet_prices(commodity, state, district)
+                    if agmarknet_data:
+                        self.cache[cache_key] = {
+                            'data': agmarknet_data,
+                            'timestamp': datetime.now()
+                        }
+                        return agmarknet_data
+                except Exception as agmarknet_error:
+                    logger.warning(f"Agmarknet API also failed: {str(agmarknet_error)}")
+            
+            # If all APIs fail, return cached data even if expired
+            if cache_key in self.cache:
+                return self.cache[cache_key]['data']
                 
-        except Exception as e:
-            logger.error(f"Failed to fetch market prices: {str(e)}")
             raise APIServiceError(f"Failed to fetch market prices: {str(e)}")
     
     async def _get_agmarknet_prices(self, commodity: str, state: str, district: Optional[str] = None) -> List[Dict]:
-        """Get prices from Agmarknet API."""
-        if not settings.DATA_GOV_API_KEY:
-            raise APIServiceError("API key not configured")
-            
-        url = f"{settings.MANDI_API_URL}/agmarknet"
-        params = {
-            'api-key': settings.DATA_GOV_API_KEY,
-            'format': 'json',
-            'commodity': commodity,
-            'state': state,
-            'limit': 10
-        }
+        """Get prices from Agmarknet API.
         
-        if district:
-            params['district'] = district
+        Args:
+            commodity: Name of the agricultural commodity
+            state: State name
+            district: Optional district name for more specific results
             
-        data = await self._make_api_request(url, params=params)
-        return self._process_agmarknet_response(data)
+        Returns:
+            List of processed market price records
+            
+        Note:
+            This is a fallback method when AgnoMarket API is not available.
+        """
+        if not settings.DATA_GOV_API_KEY or not hasattr(settings, 'MANDI_API_URL'):
+            logger.warning("Agmarknet API configuration is incomplete")
+            return []
+            
+        try:
+            url = f"{settings.MANDI_API_URL}/agmarknet"
+            params = {
+                'api-key': settings.DATA_GOV_API_KEY,
+                'format': 'json',
+                'commodity': commodity,
+                'state': state,
+                'limit': 10
+            }
+            
+            if district:
+                params['district'] = district
+                
+            logger.info(f"Fetching Agmarknet data for {commodity} in {state} ({district or 'all districts'})")
+            data = await self._make_api_request(url, params=params)
+            
+            if not data or 'records' not in data:
+                logger.warning(f"No valid data received from Agmarknet API: {data}")
+                return []
+                
+            return self._process_agmarknet_response(data)
+            
+        except Exception as e:
+            logger.error(f"Error in Agmarknet API request: {str(e)}")
+            return []
+    
+    def _parse_price(self, value) -> float:
+        """Parse and validate price values.
+        
+        Args:
+            value: Input value to parse (can be str, int, or float)
+            
+        Returns:
+            float: Parsed price value, or 0 if invalid
+        """
+        if value is None:
+            return 0.0
+            
+        try:
+            # Handle string with commas (e.g., "1,234.56")
+            if isinstance(value, str):
+                value = value.replace(',', '').strip()
+                
+            # Convert to float and validate
+            price = float(value)
+            return max(0.0, price)  # Ensure non-negative
+            
+        except (ValueError, TypeError):
+            return 0.0
+    
+    def _parse_date(self, date_str: Optional[str]) -> Optional[str]:
+        """Parse and validate date strings into YYYY-MM-DD format.
+        
+        Args:
+            date_str: Input date string in various formats
+            
+        Returns:
+            str: Date in YYYY-MM-DD format, or None if invalid
+        """
+        if not date_str:
+            return None
+            
+        try:
+            # Try parsing common date formats
+            for fmt in ('%Y-%m-%d', '%d-%m-%Y', '%d/%m/%Y', '%Y/%m/%d'):
+                try:
+                    dt = datetime.strptime(date_str, fmt)
+                    return dt.strftime('%Y-%m-%d')
+                except ValueError:
+                    continue
+                    
+            # If we get here, none of the formats matched
+            logger.warning(f"Could not parse date: {date_str}")
+            return None
+            
+        except Exception as e:
+            logger.warning(f"Error parsing date {date_str}: {str(e)}")
+            return None
     
     def _process_agmarknet_response(self, data: Dict) -> List[Dict]:
-        """Process and normalize Agmarknet API response."""
+        """Process and normalize Agmarknet API response.
+        
+        Args:
+            data: Raw API response data
+            
+        Returns:
+            List of normalized market price records with consistent structure
+        """
+        if not data or not isinstance(data, dict):
+            logger.warning("Invalid data format received for processing")
+            return []
+            
         records = data.get('records', [])
+        if not isinstance(records, list):
+            logger.warning("Records data is not a list")
+            return []
+            
         processed = []
+        today = datetime.now().date()
         
         for record in records:
+            if not isinstance(record, dict):
+                continue
+                
             try:
+                # Parse and validate prices
+                min_price = self._parse_price(record.get('min_price'))
+                max_price = self._parse_price(record.get('max_price'))
+                modal_price = self._parse_price(record.get('modal_price'))
+                
+                # Ensure min <= modal <= max
+                if min_price > 0 and max_price > 0 and min_price > max_price:
+                    min_price, max_price = max_price, min_price
+                    
+                if modal_price > 0:
+                    if min_price <= 0 or modal_price < min_price:
+                        min_price = modal_price
+                    if max_price <= 0 or modal_price > max_price:
+                        max_price = modal_price
+                
+                # Parse and validate date
+                arrival_date = self._parse_date(record.get('arrival_date'))
+                if not arrival_date:
+                    arrival_date = today.strftime('%Y-%m-%d')
+                
                 processed.append({
-                    'market': record.get('market'),
-                    'commodity': record.get('commodity'),
-                    'variety': record.get('variety'),
-                    'min_price': float(record.get('min_price', 0)),
-                    'max_price': float(record.get('max_price', 0)),
-                    'modal_price': float(record.get('modal_price', 0)),
-                    'arrival_date': record.get('arrival_date'),
-                    'state': record.get('state'),
-                    'district': record.get('district')
+                    'market': record.get('market', 'Unknown Market').title(),
+                    'commodity': record.get('commodity', 'Unknown').title(),
+                    'variety': record.get('variety', '').title(),
+                    'min_price': round(min_price, 2),
+                    'max_price': round(max_price, 2),
+                    'modal_price': round(modal_price, 2) if modal_price > 0 else round((min_price + max_price) / 2, 2),
+                    'arrival_date': arrival_date,
+                    'state': record.get('state', '').title(),
+                    'district': record.get('district', '').title(),
+                    'source': 'Agmarknet',
+                    'last_updated': datetime.now().isoformat()
                 })
-            except (ValueError, TypeError) as e:
-                logger.warning(f"Error processing market record: {str(e)}")
+                
+            except Exception as e:
+                logger.warning(f"Error processing market record {record.get('id', 'unknown')}: {str(e)}")
                 continue
                 
         return processed

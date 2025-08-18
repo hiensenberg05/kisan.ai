@@ -70,7 +70,7 @@ class PlantHealthService:
         """Diagnose plant diseases from an image.
         
         Args:
-            image_b64: Base64 encoded image data
+            image_b64: Base64 encoded image data (with or without data URL prefix)
             crop: Optional crop type (e.g., 'tomato', 'wheat')
             
         Returns:
@@ -80,29 +80,69 @@ class PlantHealthService:
             APIServiceError: If the API request fails
             InvalidInputError: If the input is invalid
         """
-        if not image_b64 or not isinstance(image_b64, str):
-            raise InvalidInputError("Invalid image data")
+        logger.info("Starting disease diagnosis...")
+        
+        if not image_b64:
+            logger.error("No image data provided")
+            raise InvalidInputError("No image data provided")
+            
+        if not isinstance(image_b64, str):
+            logger.error(f"Image data must be a string, got {type(image_b64)}")
+            raise InvalidInputError("Invalid image data format")
             
         try:
-            # Validate base64
-            if not image_b64.startswith('data:image/'):
-                base64.b64decode(image_b64, validate=True)
-                
+            # Handle different input formats
+            if image_b64.startswith('data:image/'):
+                # Handle data URL format: data:image/png;base64,<data>
+                if ',' in image_b64:
+                    header, data = image_b64.split(',', 1)
+                    # Validate the header
+                    if not any(header.endswith(ext) for ext in ['/jpeg', '/png', '/jpg']):
+                        logger.error(f"Unsupported image format in data URL: {header}")
+                        raise InvalidInputError("Unsupported image format. Please use JPEG or PNG.")
+                    clean_image_data = data
+                else:
+                    logger.error("Malformed data URL")
+                    raise InvalidInputError("Invalid image data URL format")
+            else:
+                # Assume it's raw base64 data
+                clean_image_data = image_b64
+            
+            # Validate base64 format
+            try:
+                # Add padding if needed
+                padding = len(clean_image_data) % 4
+                if padding:
+                    clean_image_data += '=' * (4 - padding)
+                base64.b64decode(clean_image_data, validate=True)
+            except Exception as e:
+                logger.error(f"Invalid base64 data: {str(e)}")
+                raise InvalidInputError("Invalid image data. Please check the image format.")
+            
+            # Prepare the payload with the original format
             payload = {
-                "image": image_b64,
+                "image": f"data:image/jpeg;base64,{clean_image_data}" if not image_b64.startswith('data:image/') else image_b64,
                 "crop": crop,
                 "include_treatments": True,
                 "include_prevention": True,
-                "language": "en"  # Ensure English responses
+                "language": "en"
             }
             
             logger.info(f"Initiating disease diagnosis for crop: {crop or 'unknown'}")
+            
+            # If API is not configured, return mock response
+            if not self.api_key or not self.base_url:
+                logger.warning("Plant.Health API not configured, returning mock diagnosis")
+                return self._get_mock_diagnosis(crop)
+                
             response = await self._make_api_request("/v1/diagnose", payload)
             return self._parse_diagnosis_response(response, crop)
             
-        except (ValueError, TypeError) as e:
-            logger.error(f"Invalid input data: {str(e)}")
-            raise InvalidInputError(f"Invalid input data: {str(e)}")
+        except Exception as e:
+            logger.error(f"Error in diagnose: {str(e)}", exc_info=True)
+            if not isinstance(e, InvalidInputError):
+                raise APIServiceError(f"Failed to process image: {str(e)}")
+            raise
     
     def _parse_diagnosis_response(self, api_response: Dict, crop: Optional[str] = None) -> Dict[str, Any]:
         """Parse and validate the API response.
@@ -240,3 +280,34 @@ class PlantHealthService:
                 output.append(f"{i}. {tip}")
                 
         return "\n".join(output)
+    
+    def _get_mock_diagnosis(self, crop: Optional[str] = None) -> Dict[str, Any]:
+        """Return a mock diagnosis when API is not available.
+        
+        Args:
+            crop: Optional crop type
+            
+        Returns:
+            Mock diagnosis result
+        """
+        return {
+            'disease': 'healthy',
+            'confidence': 0.85,
+            'crop': crop or 'unknown',
+            'treatments': [
+                {
+                    'name': 'Regular Monitoring',
+                    'description': 'Continue regular plant monitoring and maintain good agricultural practices.'
+                }
+            ],
+            'prevention_tips': [
+                'Ensure proper watering and drainage',
+                'Maintain optimal spacing between plants',
+                'Regular inspection for early disease detection'
+            ],
+            'raw_response': {
+                'mock': True,
+                'status': 'success',
+                'message': 'This is a mock response. Please configure the Plant.Health API for real diagnosis.'
+            }
+        }

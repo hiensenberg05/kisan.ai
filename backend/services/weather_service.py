@@ -5,14 +5,10 @@ from typing import Dict, Any, Optional
 from datetime import datetime, timedelta
 import logging
 from pydantic import BaseModel, Field
-from dotenv import load_dotenv
+from core.config import settings
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-# Load environment variables
-load_dotenv()
 
 class WeatherData(BaseModel):
     """Weather data model"""
@@ -36,9 +32,9 @@ class WeatherService:
     """Service for fetching weather data from OpenWeatherMap API"""
     
     def __init__(self):
-        self.api_key = os.getenv("OPENWEATHER_API_KEY")
+        self.api_key = settings.WEATHER_API
         if not self.api_key:
-            logger.warning("OPENWEATHER_API_KEY not found in environment variables")
+            logger.warning("WEATHER_API not found in settings")
         self.base_url = "https://api.openweathermap.org/data/2.5"
         self.client = httpx.AsyncClient(timeout=30.0)
     
