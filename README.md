@@ -64,3 +64,21 @@
 Add to `.env`:  
 ```env
 GOOGLE_APPLICATION_CREDENTIALS=projectkisan-465305-386ada2795ef.json
+# 1. Navigate to backend
+cd backend
+
+# 2. Create virtual environment
+python -m venv venv
+
+# 3. Activate environment
+# Windows:
+venv\Scripts\activate
+# Mac/Linux:
+source venv/bin/activate
+
+# 4. Install dependencies
+pip install -r requirements.txt
+
+# 5. Run backend server
+uvicorn main:app --reload
+
