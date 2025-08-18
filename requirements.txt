@@ -1,0 +1,39 @@
+# Kisan.AI backend - minimal runtime dependencies
+# Generated on 2025-08-17T18:20:08+05:30
+
+# Web framework
+fastapi
+uvicorn
+
+# Config and logging
+pydantic
+pydantic-settings
+python-dotenv
+loguru
+sentry-sdk
+
+# HTTP and async
+requests
+aiohttp
+tenacity
+
+# Data, time, utils
+numpy
+pytz
+typing-extensions
+
+# ML / NLP
+scikit-learn
+sentence-transformers
+
+# Geo
+geopy
+
+# Parsing / scraping
+beautifulsoup4
+
+# FastAPI uploads
+python-multipart
+
+# Agents framework
+google-adk==0.5.0
