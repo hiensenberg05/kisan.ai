@@ -1,39 +1,20 @@
-# Ignore .env files in any directory
+# Ignore Python virtual environments
+venv/
+
+# Ignore environment variable files
 .env
 
-# Common Python files to ignore
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-
-# Virtual Environment
-venv/
-ENV/
-
-# IDE specific files
-.idea/
+# Ignore VS Code settings
 .vscode/
-*.swp
-*.swo
-*~
 
-# Local development
+# Ignore Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Ignore logs and temp files
 *.log
-*.sqlite3
+*.tmp
+
+# Ignore Jupyter Notebook checkpoints
+.ipynb_checkpoints/

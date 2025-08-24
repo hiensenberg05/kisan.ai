@@ -1,0 +1,36 @@
+├── orchestator.py                # Main orchestrator (routes queries to sub-agents)
+│
+├── crop_doctor/
+│   ├── agent.py                  # Crop Doctor Agent logic
+│   ├── prompts.py                # Prompts for crop doctor agent
+│   └── tools.py                  # plant.health API, Apify scraper, subsidy APIs
+│   ├── _init_.py                # Package initializer
+│
+├── market_analyst/
+│   ├── agent.py                  # Market Analyst Agent logic
+│   ├── prompts.py                # Prompts for market analyst agent
+│   └── tools.py                  # Scraper + Google Search wrappers
+│   ├── _init_.py                # Package initializer
+│
+├── gov_scheme_advisor/
+│   ├── agent.py                  # Talks to RAG Agent when KB lookup needed
+│   ├── prompts.py                # Prompts for government scheme advisor
+│   ├── _init_.py                # Package initializer
+│
+├── rag_agent/
+│   ├── agent.py                  # Retrieval Augmented Generation Agent
+│   └── retrieve.py               # Retrieval logic for RAG agent
+│   ├── _init_.py                # Package initializer
+│
+├── weather_sentinel/
+│   ├── agents.py                 # Weather Sentinel Agent logic
+│   └── tools.py                  # OpenWeather / IMD APIs
+│   ├── _init_.py                # Package initializer
+│
+├── services/
+│   ├── image_service.py          # Image processing service
+│   ├── text_service.py           # Text processing service
+│   └── voice_service.py          # Speech ↔ text conversion service
+│   ├── _init_.py                # Package initializer
+│
+└── .env                          # Environment variables

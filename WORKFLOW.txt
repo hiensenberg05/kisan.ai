@@ -1,43 +1,29 @@
-backend/
-│── main.py                     # FastAPI entrypoint
-│── orchestrator.py              # Main decision agent
+├── orchestrator.py              # Main Agent (routes queries to sub-agents)
 │
-├── api/
-│   └── routes.py                # API routes/endpoints
+├── crop_doctor/
+│   ├── agent.py                  # Crop Doctor Agent logic
+│   └── tools.py                  # plant.health API, Apify scraper, subsidy APIs
 │
-├── agents/                      # Orchestration agents
-│   ├── disease_agent.py         # Calls Plant.health API
-│   ├── remedies_agent.py        # Finds remedies, calls price services
-│   ├── market_agent.py          # Agmarknet for market trends
-│   ├── schemes_agent.py         # Govt schemes/subsidies
-│   ├── weather_agent.py         # Weather + location context
-│   └── voice_agent.py           # For STT → intent → TTS response
+├── market_analyst/
+│   ├── agent.py
+│   └── tools.py                  # Scraper + Google Search wrappers
 │
-├── services/                    # API connectors
-│   ├── disease_service.py       # Plant.health API integration
-│   ├── price_service.py         # Apify, SerpAPI, gov scraping
-│   ├── market_service.py        # Agmarknet API
-│   ├── scheme_service.py        # Govt portals scraper
-│   ├── weather_service.py       # OpenWeather + Cloud location API
-│   └── voice_service.py         # Cloud STT & TTS integration
+├── gov_scheme_advisor/
+│   ├── agent.py                  # Talks to RAG Agent when KB lookup needed
+│   └── tools.py                  # Predefined API calls for govt schemes
 │
-├── tools/                       # Intelligence utilities
-│   ├── rag_engine.py            # RAG pipeline (VectorDB + Neo4j hybrid)
-│   ├── trend_analysis.py        # Price trend/forecasting
-│   └── nlp_utils.py             # Intent extraction, preprocessing
+├── rag_agent/
+│   ├── agent.py                  # Retrieval Augmented Generation Agent
+│   └── vectorstore/              # ChromaDB / FAISS / Pinecone index of Govt Schemes KB
 │
-├── modules/                     # Language & communication modules
-│   ├── asr.py                   # STT (Google Cloud Speech API)
-│   ├── tts.py                   # TTS (Google Cloud / Azure)
-│   ├── translator.py            # Local language translation
-│   └── formatter.py             # Format results into farmer-friendly text
+├── weather_sentinel/
+│   ├── agent.py
+│   └── tools.py                  # OpenWeather / IMD APIs
 │
-├── utils/
-│   ├── config.py                # API keys, settings
-│   ├── logger.py                # Central logging
-│   ├── helpers.py               # Shared helper functions
-│   └── errors.py                # Custom exceptions
+├── services/
+│   ├── voice_service.py          # Converts speech ↔ text
+│   ├── text_service.py           # (Optional) If you want multi-modal input later
 │
-├── schemas/
-│   └── schemas.py               # Pydantic schemas for requests/responses
-└── requirements.txt
+└── utils/
+    ├── logging_utils.py
+    └── config.py
